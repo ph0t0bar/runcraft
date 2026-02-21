@@ -356,6 +356,45 @@ body {
   padding: 8px 0;
 }
 
+/* ── Drop button ─────────────────────── */
+.drop-section {
+  padding: 14px 16px; border-top: 1px solid var(--border);
+}
+.drop-btn {
+  width: 100%; padding: 12px 16px;
+  background: linear-gradient(135deg, #6366F1, #8B5CF6);
+  color: #fff; border: none; border-radius: var(--radius-sm);
+  font-family: var(--font-heading); font-size: 14px; font-weight: 700;
+  cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+  transition: all 0.25s; position: relative; overflow: hidden;
+  text-decoration: none;
+}
+.drop-btn::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.15) 50%, transparent 60%);
+  transform: translateX(-100%); transition: transform 0.6s;
+}
+.drop-btn:hover::after { transform: translateX(100%); }
+.drop-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(99,102,241,0.3); }
+.drop-btn i { font-size: 13px; }
+.drop-btn .drop-label { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; }
+.drop-btn .drop-label small {
+  font-family: var(--font-body); font-size: 10px; font-weight: 500;
+  opacity: 0.8; letter-spacing: 0.3px;
+}
+
+/* ── DA branding ─────────────────────── */
+.da-badge {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 12px 16px; font-size: 11px; color: var(--text-secondary);
+  border-top: 1px solid var(--border);
+}
+.da-badge a {
+  color: #8B5CF6; text-decoration: none; font-weight: 600;
+  transition: color 0.2s;
+}
+.da-badge a:hover { color: #A78BFA; }
+
 /* ── Empty state ──────────────────────── */
 .empty-state {
   text-align:center; padding:28px 16px;
@@ -487,12 +526,28 @@ body {
           <div class="dir-label"><i class="fas fa-arrow-right-to-bracket"></i> Return</div>
           <ol class="dir-list" id="dir-ret"></ol>
         </div>
+        <div class="drop-section">
+          <button class="drop-btn" id="drop-btn">
+            <i class="fas fa-paper-plane"></i>
+            <span class="drop-label">
+              Save as Drop
+              <small>via DropAnywhere</small>
+            </span>
+          </button>
+        </div>
+        <div class="da-badge">
+          <i class="fas fa-bolt" style="color:#8B5CF6;font-size:10px;"></i>
+          Drop from anywhere &mdash; <a href="https://drop-anywhere.com" target="_blank" rel="noopener">drop-anywhere.com</a>
+        </div>
       </div>
     </div>
 
     <div class="empty-state" id="empty-state">
       <i class="fas fa-map-marked-alt"></i>
       Set your starting point, enter a distance, and generate road-following routes to explore different directions.
+      <div style="margin-top:14px; font-size:11px;">
+        Save routes instantly with <a href="https://drop-anywhere.com" target="_blank" rel="noopener" style="color:#8B5CF6;text-decoration:none;font-weight:600;">DropAnywhere</a>
+      </div>
     </div>
   </div>
 </div>
@@ -558,6 +613,7 @@ body {
   var $dirOut     = document.getElementById("dir-out");
   var $dirRet     = document.getElementById("dir-ret");
   var $copyBtn    = document.getElementById("copy-btn");
+  var $dropBtn    = document.getElementById("drop-btn");
 
   /* ── Map init ────────────────────────────────── */
   map = L.map("map", { center: [40.758, -73.9855], zoom: 13, zoomControl: true });
@@ -1198,6 +1254,45 @@ body {
   }
 
   $copyBtn.addEventListener("click", copyDirections);
+
+  /* ── Save as Drop (DropAnywhere) ─────────────── */
+  function buildDropContent() {
+    if (selectedIdx < 0) return null;
+    var r = currentRoutes[selectedIdx];
+    var distDisp = unit === "mi" ? r.totalKm / 1.60934 : r.totalKm;
+    var est = parsePace($paceIn.value) * distDisp;
+
+    var t = "RunCraft Route: " + r.name + " (" + distDisp.toFixed(2) + " " + unit + " out & back)\n\n";
+    t += "Start: " + startName + "\n";
+    if (r.turnAddr) t += "Turn around at: " + r.turnAddr + "\n";
+    t += "Est. time: " + fmtTime(est) + "\n";
+
+    if (r.outSteps && r.outSteps.length) {
+      t += "\nDirections (out):\n";
+      r.outSteps.forEach(function (s, i) {
+        t += (i + 1) + ". " + s.text + " - " + fmtStepDist(s.distM) + "\n";
+      });
+      if (r.retSteps && r.retSteps.length) {
+        t += "\nDirections (return):\n";
+        r.retSteps.forEach(function (s, i) {
+          t += (i + 1) + ". " + s.text + " - " + fmtStepDist(s.distM) + "\n";
+        });
+      }
+    }
+
+    return { subject: "Run: " + r.name + " " + distDisp.toFixed(1) + unit + " - " + startName, body: t };
+  }
+
+  function saveAsDrop() {
+    var drop = buildDropContent();
+    if (!drop) return;
+    var subject = encodeURIComponent(drop.subject);
+    var body = encodeURIComponent(drop.body + "\n\n---\nDropped from RunCraft | https://runcraft-production.up.railway.app");
+    window.location.href = "mailto:drop@drop-anywhere.com?subject=" + subject + "&body=" + body;
+    showToast("Opening email to drop your run!", 3000);
+  }
+
+  $dropBtn.addEventListener("click", saveAsDrop);
 
   /* ── Select route ────────────────────────────── */
   function selectRoute(i) {
