@@ -356,10 +356,34 @@ body {
   padding: 8px 0;
 }
 
-/* ── Drop button ─────────────────────── */
+/* ── Drop section ────────────────────── */
 .drop-section {
   padding: 14px 16px; border-top: 1px solid var(--border);
 }
+.drop-email-row {
+  display: flex; gap: 6px; margin-bottom: 8px;
+}
+.drop-email-input {
+  flex: 1; background: var(--surface-elevated); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 10px 12px;
+  font-family: var(--font-body); font-size: 14px; color: var(--text);
+  outline: none; min-width: 0; transition: border-color 0.2s;
+}
+.drop-email-input:focus { border-color: #8B5CF6; }
+.drop-email-input::placeholder { color: var(--text-secondary); opacity: 0.5; }
+.drop-saved-email {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+  padding: 8px 12px; background: var(--surface-elevated);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  font-size: 13px;
+}
+.drop-saved-email .email-text { flex: 1; color: var(--text); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.drop-saved-email .change-email {
+  background: none; border: none; color: var(--text-secondary); cursor: pointer;
+  font-size: 11px; font-family: var(--font-body); font-weight: 600;
+  transition: color 0.2s; flex-shrink: 0;
+}
+.drop-saved-email .change-email:hover { color: #8B5CF6; }
 .drop-btn {
   width: 100%; padding: 12px 16px;
   background: linear-gradient(135deg, #6366F1, #8B5CF6);
@@ -367,21 +391,27 @@ body {
   font-family: var(--font-heading); font-size: 14px; font-weight: 700;
   cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
   transition: all 0.25s; position: relative; overflow: hidden;
-  text-decoration: none;
 }
 .drop-btn::after {
   content: ''; position: absolute; inset: 0;
   background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.15) 50%, transparent 60%);
   transform: translateX(-100%); transition: transform 0.6s;
 }
-.drop-btn:hover::after { transform: translateX(100%); }
-.drop-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(99,102,241,0.3); }
+.drop-btn:not(:disabled):hover::after { transform: translateX(100%); }
+.drop-btn:not(:disabled):hover { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(99,102,241,0.3); }
+.drop-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .drop-btn i { font-size: 13px; }
-.drop-btn .drop-label { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; }
-.drop-btn .drop-label small {
-  font-family: var(--font-body); font-size: 10px; font-weight: 500;
-  opacity: 0.8; letter-spacing: 0.3px;
+.drop-btn.dropping i { animation: spin 1s linear infinite; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.drop-btn.dropped { background: linear-gradient(135deg, #10B981, #34D399); }
+.drop-success {
+  display: none; margin-top: 8px; padding: 10px 12px;
+  background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.2);
+  border-radius: var(--radius-sm); font-size: 12px; color: #10B981;
+  line-height: 1.5;
 }
+.drop-success.show { display: block; animation: cardIn 0.3s ease-out; }
+.drop-success a { color: #10B981; font-weight: 700; }
 
 /* ── DA branding ─────────────────────── */
 .da-badge {
@@ -526,14 +556,22 @@ body {
           <div class="dir-label"><i class="fas fa-arrow-right-to-bracket"></i> Return</div>
           <ol class="dir-list" id="dir-ret"></ol>
         </div>
-        <div class="drop-section">
+        <div class="drop-section" id="drop-section">
+          <div class="drop-saved-email" id="drop-saved-row" style="display:none;">
+            <i class="fas fa-circle-check" style="color:#10B981;font-size:12px;"></i>
+            <span class="email-text" id="drop-saved-email"></span>
+            <button class="change-email" id="drop-change-email">change</button>
+          </div>
+          <div class="drop-email-row" id="drop-email-row">
+            <input type="email" class="drop-email-input" id="drop-email" placeholder="your@email.com" autocomplete="email">
+          </div>
           <button class="drop-btn" id="drop-btn">
-            <i class="fas fa-paper-plane"></i>
-            <span class="drop-label">
-              Save as Drop
-              <small>via DropAnywhere</small>
-            </span>
+            <i class="fas fa-paper-plane" id="drop-icon"></i>
+            <span id="drop-text">Save as Drop</span>
           </button>
+          <div class="drop-success" id="drop-success">
+            Dropped! View it in your <a href="https://drop-anywhere.com/dashboard" target="_blank" rel="noopener">DropAnywhere vault</a>.
+          </div>
         </div>
         <div class="da-badge">
           <i class="fas fa-bolt" style="color:#8B5CF6;font-size:10px;"></i>
@@ -614,6 +652,14 @@ body {
   var $dirRet     = document.getElementById("dir-ret");
   var $copyBtn    = document.getElementById("copy-btn");
   var $dropBtn    = document.getElementById("drop-btn");
+  var $dropIcon   = document.getElementById("drop-icon");
+  var $dropText   = document.getElementById("drop-text");
+  var $dropEmail  = document.getElementById("drop-email");
+  var $dropEmailRow = document.getElementById("drop-email-row");
+  var $dropSavedRow = document.getElementById("drop-saved-row");
+  var $dropSavedEmail = document.getElementById("drop-saved-email");
+  var $dropChangeEmail = document.getElementById("drop-change-email");
+  var $dropSuccess = document.getElementById("drop-success");
 
   /* ── Map init ────────────────────────────────── */
   map = L.map("map", { center: [40.758, -73.9855], zoom: 13, zoomControl: true });
@@ -1255,7 +1301,30 @@ body {
 
   $copyBtn.addEventListener("click", copyDirections);
 
-  /* ── Save as Drop (DropAnywhere) ─────────────── */
+  /* ── Save as Drop (DropAnywhere API) ──────────── */
+  var DA_API = "https://hub-production-f423.up.railway.app/api/ingest";
+  var DA_KEY = "dropanywhere_master_4f67e22e42965afe2d26c939df60c5cd";
+  var savedEmail = localStorage.getItem("runcraft_drop_email") || "";
+
+  function initDropEmail() {
+    if (savedEmail) {
+      $dropEmailRow.style.display = "none";
+      $dropSavedRow.style.display = "flex";
+      $dropSavedEmail.textContent = savedEmail;
+      $dropEmail.value = savedEmail;
+    }
+  }
+  initDropEmail();
+
+  $dropChangeEmail.addEventListener("click", function () {
+    savedEmail = "";
+    localStorage.removeItem("runcraft_drop_email");
+    $dropSavedRow.style.display = "none";
+    $dropEmailRow.style.display = "flex";
+    $dropEmail.value = "";
+    $dropEmail.focus();
+  });
+
   function buildDropContent() {
     if (selectedIdx < 0) return null;
     var r = currentRoutes[selectedIdx];
@@ -1280,16 +1349,90 @@ body {
       }
     }
 
-    return { subject: "Run: " + r.name + " " + distDisp.toFixed(1) + unit + " - " + startName, body: t };
+    return {
+      subject: "Run: " + r.name + " " + distDisp.toFixed(1) + unit + " - " + startName,
+      body: t,
+      metadata: {
+        route_direction: r.name,
+        route_distance: distDisp.toFixed(2) + " " + unit,
+        start_location: startName,
+        turnaround: r.turnAddr || "",
+        est_time: fmtTime(est),
+        created_via: "runcraft"
+      }
+    };
   }
 
   function saveAsDrop() {
+    var email = ($dropEmail.value || savedEmail).trim();
+    if (!email || email.indexOf("@") < 1) {
+      showToast("Enter your email to save this drop", 3000);
+      $dropEmail.focus();
+      return;
+    }
+
     var drop = buildDropContent();
     if (!drop) return;
-    var subject = encodeURIComponent(drop.subject);
-    var body = encodeURIComponent(drop.body + "\n\n---\nDropped from RunCraft | https://runcraft-production.up.railway.app");
-    window.location.href = "mailto:drop@drop-anywhere.com?subject=" + subject + "&body=" + body;
-    showToast("Opening email to drop your run!", 3000);
+
+    /* UI: dropping state */
+    $dropBtn.disabled = true;
+    $dropBtn.classList.add("dropping");
+    $dropIcon.className = "fas fa-circle-notch";
+    $dropText.textContent = "Dropping\u2026";
+    $dropSuccess.classList.remove("show");
+
+    fetch(DA_API, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-Key": DA_KEY
+      },
+      body: JSON.stringify({
+        source: "api",
+        content: drop.body,
+        subject: drop.subject,
+        identity_type: "email",
+        identity_value: email,
+        tags: ["runcraft", "route", "run"],
+        metadata: drop.metadata,
+        priority: "normal"
+      })
+    })
+    .then(function (r) {
+      if (!r.ok) throw new Error("API error " + r.status);
+      return r.json();
+    })
+    .then(function () {
+      /* Save email for next time */
+      savedEmail = email;
+      localStorage.setItem("runcraft_drop_email", email);
+      $dropEmailRow.style.display = "none";
+      $dropSavedRow.style.display = "flex";
+      $dropSavedEmail.textContent = email;
+
+      /* UI: success */
+      $dropBtn.classList.remove("dropping");
+      $dropBtn.classList.add("dropped");
+      $dropIcon.className = "fas fa-check";
+      $dropText.textContent = "Dropped!";
+      $dropSuccess.classList.add("show");
+      showToast("Run saved to DropAnywhere!", 3000);
+
+      setTimeout(function () {
+        $dropBtn.classList.remove("dropped");
+        $dropBtn.disabled = false;
+        $dropIcon.className = "fas fa-paper-plane";
+        $dropText.textContent = "Save as Drop";
+      }, 3000);
+    })
+    .catch(function (err) {
+      $dropBtn.classList.remove("dropping");
+      $dropBtn.disabled = false;
+      $dropIcon.className = "fas fa-paper-plane";
+      $dropText.textContent = "Save as Drop";
+      showToast("Couldn't save drop \u2013 try again", 3500);
+      console.error("Drop error:", err);
+    });
   }
 
   $dropBtn.addEventListener("click", saveAsDrop);
